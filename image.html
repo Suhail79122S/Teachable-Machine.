@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نموذج آلة التعلم - تحميل صورة</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+        #image-preview {
+            max-width: 300px;
+            max-height: 300px;
+            margin: 20px auto;
+            border: 1px solid #ccc;
+            display: block; /* To center the image */
+        }
+        #label-container div {
+            margin: 5px 0;
+            padding: 10px;
+            background-color: #e9e9e9;
+            border-radius: 5px;
+            width: 250px; /* Adjust as needed */
+            text-align: center;
+        }
+        input[type="file"] {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+            cursor: pointer;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>تحميل صورة للتنبؤ بها باستخدام نموذج التعلم الآلي</h1>
+
+    <input type="file" id="imageUpload" accept="image/*">
+    <img id="image-preview" src="#" alt="معاينة الصورة" style="display:none;">
+    <button type="button" id="predictButton" style="display:none;">تنبؤ</button>
+    <div id="label-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script type="text/javascript">
+        // رابط النموذج الخاص بك من Teachable Machine
+        const URL = "https://teachablemachine.withgoogle.com/models/aiAej3WjX/"; 
+
+        let model, labelContainer, maxPredictions;
+        let uploadedImage = null; // لتخزين الصورة التي تم تحميلها
+
+        // قم بتحميل النموذج عند تحميل الصفحة
+        window.onload = async function() {
+            await initModel();
+        };
+
+        async function initModel() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            try {
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+                labelContainer = document.getElementById("label-container");
+                // إنشاء عناصر div للتسميات
+                for (let i = 0; i < maxPredictions; i++) {
+                    labelContainer.appendChild(document.createElement("div"));
+                }
+                console.log("النموذج جاهز!");
+            } catch (error) {
+                console.error("حدث خطأ أثناء تحميل النموذج:", error);
+                labelContainer.innerHTML = "فشل في تحميل النموذج. يرجى التحقق من الرابط واتصال الإنترنت.";
+            }
+        }
+
+        const imageUpload = document.getElementById('imageUpload');
+        const imagePreview = document.getElementById('image-preview');
+        const predictButton = document.getElementById('predictButton');
+
+        imageUpload.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block'; // إظهار الصورة
+                    predictButton.style.display = 'block'; // إظهار زر التنبؤ
+                    uploadedImage = imagePreview; // تخزين عنصر الصورة
+                    // مسح التنبؤات السابقة عند تحميل صورة جديدة
+                    for (let i = 0; i < maxPredictions; i++) {
+                        labelContainer.childNodes[i].innerHTML = "";
+                    }
+                };
+                reader.readAsDataURL(file);
+            } else {
+                imagePreview.src = "#";
+                imagePreview.style.display = 'none';
+                predictButton.style.display = 'none';
+                uploadedImage = null;
+                for (let i = 0; i < maxPredictions; i++) {
+                    labelContainer.childNodes[i].innerHTML = "";
+                }
+            }
+        });
+
+        predictButton.addEventListener('click', async function() {
+            if (model && uploadedImage) {
+                await predict();
+            } else if (!model) {
+                alert("النموذج لم يتم تحميله بعد. يرجى الانتظار أو تحديث الصفحة.");
+            } else if (!uploadedImage) {
+                alert("يرجى تحميل صورة أولاً.");
+            }
+        });
+
+        // تشغيل الصورة المحملة عبر نموذج الصورة
+        async function predict() {
+            // يمكن لـ predict أن يأخذ عنصر صورة، فيديو، أو كانفاس HTML
+            const prediction = await model.predict(uploadedImage); // هنا نستخدم الصورة المحملة
+
+            // مسح التنبؤات القديمة أولاً (اختياري، لكنه مفيد)
+            for (let i = 0; i < maxPredictions; i++) {
+                labelContainer.childNodes[i].innerHTML = "";
+            }
+
+            for (let i = 0; i < maxPredictions; i++) {
+                const classPrediction =
+                    prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+                labelContainer.childNodes[i].innerHTML = classPrediction;
+            }
+        }
+    </script>
+
+</body>
+</html>
